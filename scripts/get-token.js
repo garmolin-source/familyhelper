@@ -19,7 +19,10 @@ const auth = new google.auth.OAuth2(CLIENT_ID, CLIENT_SECRET, REDIRECT);
 const url = auth.generateAuthUrl({
   access_type: 'offline',
   prompt: 'consent',
-  scope: ['https://www.googleapis.com/auth/calendar'],
+  scope: [
+    'https://www.googleapis.com/auth/calendar',
+    'https://www.googleapis.com/auth/tasks',
+  ],
 });
 
 console.log('\nOpening browser for Google authorization...');

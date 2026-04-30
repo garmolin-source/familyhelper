@@ -1,5 +1,6 @@
 const { extractAction } = require('./claude');
 const { createCalendarEvent } = require('./calendar');
+const { createTask } = require('./tasks');
 const { addAction } = require('./store');
 const { MONITORED_GROUPS } = require('./config');
 
@@ -44,6 +45,8 @@ async function processMessage(sock, msg) {
 
   if (action.type === 'event') {
     await createCalendarEvent(action);
+  } else if (action.type === 'task') {
+    await createTask(action);
   }
 
   addAction(action, groupName, text);
