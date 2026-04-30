@@ -1,9 +1,8 @@
 const Anthropic = require('@anthropic-ai/sdk');
-const { ANTHROPIC_API_KEY, TODAY } = require('./config');
-
-const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
+const { TODAY } = require('./config');
 
 async function extractAction(messageText, groupName) {
+  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
   const { date, dayOfWeek } = TODAY();
 
   const prompt = `You are an assistant for an Israeli family. Extract actionable items from WhatsApp group messages.
