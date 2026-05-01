@@ -78,4 +78,42 @@ ${messageText}`;
   }
 }
 
-module.exports = { extractActions };
+async function extractActionsFromImage(base64Image, caption, groupName) {
+  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  const { date, dayOfWeek } = TODAY();
+
+  const textPrompt = caption
+    ? `תמונה עם כיתוב: "${caption}"\n\nקרא את התמונה וחלץ את כל הפריטים הניתנים לפעולה.`
+    : 'קרא את התמונה וחלץ את כל הפריטים הניתנים לפעולה.';
+
+  // Reuse the same system logic with an image content block
+  const systemContext = `אתה עוזר למשפחה ישראלית. היום: ${date} (${dayOfWeek}). קבוצה: "${groupName}". הורים: אור ואיתי.
+
+החזר ONLY מערך JSON תקין עם אותו פורמט כמו תמיד:
+[{ "type": "event"|"buy"|"prepare"|"task", "title": "כותרת בעברית", "date": "YYYY-MM-DD or null", "reminder_date": "YYYY-MM-DD or null", "time": "HH:MM or null", "owner": "Or"|"Itay"|"both", "details": "תיאור בעברית", "url": null }]
+
+החזר [] אם אין דבר הניתן לפעולה. אותם כללי סוגים כמו תמיד.`;
+
+  try {
+    const response = await client.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 1024,
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: base64Image } },
+          { type: 'text', text: `${systemContext}\n\n${textPrompt}` },
+        ],
+      }],
+    });
+
+    const raw = response.content[0].text.trim().replace(/^```json\s*/i, '').replace(/```\s*$/, '');
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (err) {
+    console.error('Claude vision error:', err.message);
+    return [];
+  }
+}
+
+module.exports = { extractActions, extractActionsFromImage };

@@ -1,4 +1,5 @@
-const { extractActions } = require('./claude');
+const { downloadMediaMessage } = require('@whiskeysockets/baileys');
+const { extractActions, extractActionsFromImage } = require('./claude');
 const { createCalendarEvent } = require('./calendar');
 const { createTask } = require('./tasks');
 const { addAction } = require('./store');
@@ -26,17 +27,48 @@ async function processMessage(sock, msg) {
   );
   if (!matchedGroup) return;
 
-  const text =
-    msg.message?.conversation ||
-    msg.message?.extendedTextMessage?.text ||
-    msg.message?.imageMessage?.caption ||
-    '';
+  const m = msg.message;
+  let actions = [];
 
-  if (!text.trim()) return;
+  // Image message — send to Claude vision (reads flyers, posters, text in images)
+  if (m?.imageMessage) {
+    const caption = m.imageMessage.caption || '';
+    console.log(`[${groupName}] Image message (caption: "${caption.substring(0, 60)}")`);
+    try {
+      const buffer = await downloadMediaMessage(msg, 'buffer', {}, { logger: { level: 'silent', child: () => ({}) } });
+      const base64 = buffer.toString('base64');
+      actions = await extractActionsFromImage(base64, caption, groupName);
+    } catch (err) {
+      console.error('Image download error:', err.message);
+      // Fall back to caption only if image download fails
+      if (caption) actions = await extractActions(caption, groupName);
+    }
 
-  console.log(`[${groupName}] Processing: ${text.substring(0, 80)}...`);
+  // Document/file message — read caption
+  } else if (m?.documentMessage) {
+    const caption = m.documentMessage.caption || m.documentMessage.fileName || '';
+    if (!caption.trim()) return;
+    console.log(`[${groupName}] Document: ${caption.substring(0, 80)}`);
+    actions = await extractActions(caption, groupName);
 
-  const actions = await extractActions(text, groupName);
+  // Video message — read caption
+  } else if (m?.videoMessage) {
+    const caption = m.videoMessage.caption || '';
+    if (!caption.trim()) return;
+    console.log(`[${groupName}] Video caption: ${caption.substring(0, 80)}`);
+    actions = await extractActions(caption, groupName);
+
+  // Regular text message
+  } else {
+    const text =
+      m?.conversation ||
+      m?.extendedTextMessage?.text ||
+      '';
+    if (!text.trim()) return;
+    console.log(`[${groupName}] Text: ${text.substring(0, 80)}...`);
+    actions = await extractActions(text, groupName);
+  }
+
   if (!actions.length) {
     console.log(`[${groupName}] Nothing actionable found`);
     return;
@@ -53,7 +85,7 @@ async function processMessage(sock, msg) {
     } else if (action.type === 'task') {
       await createTask(action);
     }
-    addAction(action, groupName, text);
+    addAction(action, groupName, action.title);
     console.log(`  → [${action.type}] ${action.title}`);
   }
 }
