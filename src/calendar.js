@@ -58,14 +58,21 @@ async function createCalendarEvent(action) {
   }
 
   try {
+    const attendeeEmails = (process.env.CALENDAR_ATTENDEES || '')
+      .split(',').map((e) => e.trim()).filter(Boolean);
+
+    const attendees = attendeeEmails.map((email) => ({ email }));
+
     const event = await calendar.events.insert({
       calendarId: GOOGLE_CALENDAR_ID,
+      sendUpdates: 'none', // no email spam — digest handles notifications
       requestBody: {
         summary: title,
         description: action.details,
         colorId: FLAMINGO,
         start,
         end,
+        attendees,
       },
     });
     console.log(`Calendar event created: ${title}`);
