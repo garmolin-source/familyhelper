@@ -48,11 +48,19 @@ async function connectToWhatsApp() {
   });
 
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
-    if (type !== 'notify') return;
     for (const msg of messages) {
-      if (!msg.key.fromMe && msg.key.remoteJid?.endsWith('@g.us')) {
-        await processMessage(sock, msg);
+      if (msg.key.fromMe || !msg.key.remoteJid?.endsWith('@g.us')) continue;
+
+      // Always process 'notify'. For 'append' (reconnect replay), only process
+      // messages sent within the last 5 minutes to avoid reprocessing old history.
+      if (type === 'append') {
+        const msgTime = (msg.messageTimestamp || 0) * 1000;
+        if (Date.now() - msgTime > 5 * 60 * 1000) continue;
+      } else if (type !== 'notify') {
+        continue;
       }
+
+      await processMessage(sock, msg);
     }
   });
 }

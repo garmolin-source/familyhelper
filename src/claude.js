@@ -20,7 +20,8 @@ Return ONLY a valid JSON array, no other text:
   {
     "type": "event" | "prep" | "task",
     "title": "כותרת קצרה בעברית",
-    "date": "YYYY-MM-DD or null",
+    "date": "YYYY-MM-DD or null — for prep: the date the item is DUE/needed",
+    "reminder_date": "YYYY-MM-DD — for prep only: the ideal date to show the reminder. Use judgment: buying something = 3 days before, practicing/reviewing = 1 day before, signing a form = 2 days before. Must not be in the past (today is ${date}). If calculated date would be past, use today.",
     "time": "HH:MM or null",
     "owner": "Or" | "Itay" | "both",
     "details": "תיאור קצר בעברית של הפריט הספציפי הזה. אם יש קישור (URL) בהודעה הרלוונטי לפריט זה, חובה לכלול אותו כאן.",

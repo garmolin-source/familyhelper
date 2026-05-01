@@ -31,10 +31,15 @@ async function createCalendarEvent(action) {
   let isAllDay = !action.time;
 
   if (action.type === 'prep') {
-    const dueDate = action.date || new Date().toISOString().split('T')[0];
-    startDate = subtractDays(dueDate, PREP_DAYS_BEFORE);
-    isAllDay = true; // appears as a banner, doesn't block time slots
-    title = `🛒 ${action.title} — needed ${action.date ? 'by ' + action.date : 'soon'}`;
+    const today = new Date().toISOString().split('T')[0];
+    const dueDate = action.date || today;
+    // Use Claude's suggested reminder_date, fallback to 1 day before due date
+    const fallback = subtractDays(dueDate, 1);
+    startDate = action.reminder_date && action.reminder_date >= today
+      ? action.reminder_date
+      : (fallback >= today ? fallback : today);
+    isAllDay = true;
+    title = `🛒 ${action.title} — נדרש עד ${action.date || 'בקרוב'}`;
   }
 
   if (!startDate) return null;
