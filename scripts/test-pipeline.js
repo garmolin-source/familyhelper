@@ -1,45 +1,56 @@
 // Test the Claude → Calendar → Email pipeline without WhatsApp
 // Usage: node scripts/test-pipeline.js
 require('dotenv').config();
-const { extractAction } = require('../src/claude');
+const { extractActions } = require('../src/claude');
 const { createCalendarEvent } = require('../src/calendar');
 const { createTask } = require('../src/tasks');
 const { sendDailyDigest } = require('../src/email');
 const { addAction, flushActions } = require('../src/store');
 
+// Simulates a typical long teacher message with multiple actionable items
 const TESTS = [
-  { message: 'שלום הורים, תזכורת שיש משחק כדורגל ביום שישי ב-10:00 במגרש אלונים. אנא הגיעו בזמן!', group: 'בית ספר לכדורגל אלונים' },
-  { message: 'בבקשה להביא ביום ראשון קופסת צבעים וזוג מספריים לכיתה', group: 'כיתה א׳2 אלונים - הורים' },
+  {
+    group: 'כיתה א׳2 אלונים - הורים',
+    message: `שלום הורים יקרים,
+כמה עדכונים חשובים לשבוע הקרוב:
+
+שיעורי בית: יש לסיים את דף העבודה במתמטיקה עמוד 12 עד יום ראשון.
+
+ציוד: בבקשה להביא ביום שני זוג מספריים וסרגל לשיעור אומנות.
+
+אירוע: ביום חמישי ה-7.5 בשעה 17:00 יתקיים מופע סיום שנה באולם בית הספר. נא להגיע ב-16:45. ההורים מוזמנים.
+
+תשלום: יש לשלם את דמי ההשתתפות לטיול ביום ראשון דרך האפליקציה, סכום של 45 ש״ח.
+
+תודה ושבת שלום 🙏`,
+  },
 ];
 
 async function run() {
-  console.log('=== Testing pipeline ===\n');
+  console.log('=== Testing multi-action pipeline ===\n');
 
   for (const { message, group } of TESTS) {
     console.log(`Group: ${group}`);
-    console.log(`Message: ${message}`);
+    console.log(`Message:\n${message}\n`);
 
-    const action = await extractAction(message, group);
-    console.log('Claude result:', JSON.stringify(action, null, 2));
+    const actions = await extractActions(message, group);
+    console.log(`Claude found ${actions.length} item(s):\n`);
 
-    if (!action || action.type === null) {
-      console.log('→ Nothing actionable\n');
-      continue;
+    for (const action of actions) {
+      console.log(`  [${action.type}] ${action.title} — ${action.date || 'no date'}`);
+      console.log(`  Details: ${action.details}\n`);
+
+      if (action.type === 'event') {
+        await createCalendarEvent(action);
+      } else if (action.type === 'task') {
+        await createTask(action);
+      }
+
+      addAction(action, group, message);
     }
-
-    if (action.type === 'event') {
-      console.log('→ Creating calendar event...');
-      await createCalendarEvent(action);
-    } else if (action.type === 'task') {
-      console.log('→ Creating Google Task...');
-      await createTask(action);
-    }
-
-    addAction(action, group, message);
-    console.log('→ Stored for digest\n');
   }
 
-  console.log('Sending daily digest email...');
+  console.log('\nSending daily digest email...');
   await sendDailyDigest(flushActions());
   console.log('\n=== Done! Check your email, Google Calendar and Google Tasks ===');
 }

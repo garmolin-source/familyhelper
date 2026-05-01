@@ -1,4 +1,4 @@
-const { extractAction } = require('./claude');
+const { extractActions } = require('./claude');
 const { createCalendarEvent } = require('./calendar');
 const { createTask } = require('./tasks');
 const { addAction } = require('./store');
@@ -13,7 +13,6 @@ async function processMessage(sock, msg) {
 
   const groupJid = msg.key.remoteJid;
 
-  // Fetch group metadata to get the group name
   let groupName = '';
   try {
     const meta = await sock.groupMetadata(groupJid);
@@ -22,7 +21,6 @@ async function processMessage(sock, msg) {
     return;
   }
 
-  // Check if this is a monitored group
   const matchedGroup = MONITORED_GROUPS.find((g) =>
     groupName.toLowerCase().includes(g.toLowerCase())
   );
@@ -38,19 +36,23 @@ async function processMessage(sock, msg) {
 
   console.log(`[${groupName}] Processing: ${text.substring(0, 80)}...`);
 
-  const action = await extractAction(text, groupName);
-  if (!action || action.type === null) return;
-
-  console.log('Claude extracted:', JSON.stringify(action));
-
-  if (action.type === 'event') {
-    await createCalendarEvent(action);
-  } else if (action.type === 'task') {
-    await createTask(action);
+  const actions = await extractActions(text, groupName);
+  if (!actions.length) {
+    console.log(`[${groupName}] Nothing actionable found`);
+    return;
   }
 
-  addAction(action, groupName, text);
-  console.log(`Stored for digest: [${action.type}] ${action.title}`);
+  console.log(`Claude extracted ${actions.length} item(s)`);
+
+  for (const action of actions) {
+    if (action.type === 'event') {
+      await createCalendarEvent(action);
+    } else if (action.type === 'task') {
+      await createTask(action);
+    }
+    addAction(action, groupName, text);
+    console.log(`  → [${action.type}] ${action.title}`);
+  }
 }
 
 module.exports = { processMessage };
