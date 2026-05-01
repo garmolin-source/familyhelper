@@ -22,9 +22,12 @@ async function createTask(action) {
     notes,
   };
 
-  if (action.date) {
-    // Google Tasks due date must be RFC 3339 with time set to midnight UTC
-    task.due = `${action.date}T00:00:00.000Z`;
+  const dueDate = action.type === 'prep' && action.reminder_date
+    ? action.reminder_date
+    : action.date;
+
+  if (dueDate) {
+    task.due = `${dueDate}T00:00:00.000Z`;
   }
 
   try {
