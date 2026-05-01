@@ -69,9 +69,8 @@ async function run() {
     }
   }
 
-  console.log('\nSending daily digest email...');
-  await sendDailyDigest(flushActions());
-  console.log('\n=== Done! Check your email, Google Calendar and Google Tasks ===');
+  console.log('\n=== Done! Check your Google Calendar and Google Tasks ===');
+  console.log('(Email skipped in test mode)');
 }
 
 run().catch(console.error);
