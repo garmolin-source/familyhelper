@@ -22,7 +22,7 @@ async function createTask(action) {
     notes,
   };
 
-  const dueDate = action.type === 'prep' && action.reminder_date
+  const dueDate = (action.type === 'buy' || action.type === 'prepare') && action.reminder_date
     ? action.reminder_date
     : action.date;
 

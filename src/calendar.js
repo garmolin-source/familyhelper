@@ -6,7 +6,7 @@ const {
   GOOGLE_CALENDAR_ID,
 } = require('./config');
 
-const YELLOW = '5'; // Google Calendar colorId for Banana (yellow)
+const YELLOW = '5';
 
 function getCalendarClient() {
   const auth = new google.auth.OAuth2(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET);
@@ -26,9 +26,8 @@ function getAttendees() {
     .map((email) => ({ email }));
 }
 
-async function insertEvent(calendar, { summary, description, date, time, colorId }) {
+async function insertEvent(calendar, { summary, description, date, time }) {
   const isAllDay = !time;
-
   const start = isAllDay
     ? { date }
     : { dateTime: `${date}T${time}:00`, timeZone: 'Asia/Jerusalem' };
@@ -43,21 +42,19 @@ async function insertEvent(calendar, { summary, description, date, time, colorId
     ? { date }
     : { dateTime: `${date}T${endTime}:00`, timeZone: 'Asia/Jerusalem' };
 
-  const event = await calendar.events.insert({
+  await calendar.events.insert({
     calendarId: GOOGLE_CALENDAR_ID,
     sendUpdates: 'none',
     requestBody: {
       summary,
       description,
-      colorId,
+      colorId: YELLOW,
       start,
       end,
       attendees: getAttendees(),
     },
   });
-
   console.log(`Calendar event created: ${summary}`);
-  return event.data.htmlLink;
 }
 
 async function createCalendarEvent(action) {
@@ -68,40 +65,50 @@ async function createCalendarEvent(action) {
     : action.details;
 
   try {
-    if (action.type === 'prep') {
-      const dueDate = action.date || today;
-      const fallback = subtractDays(dueDate, 1);
-
-      // Banner 1: reminder day — to prepare/buy
-      const reminderDate = action.reminder_date && action.reminder_date >= today
-        ? action.reminder_date
-        : (fallback >= today ? fallback : today);
-
-      await insertEvent(calendar, {
-        summary: `🛒 להכין: ${action.title}`,
-        description,
-        date: reminderDate,
-        colorId: YELLOW,
-      });
-
-      // Banner 2: due day — to remember to bring/execute
-      if (dueDate !== reminderDate) {
-        await insertEvent(calendar, {
-          summary: `🎒 להביא: ${action.title}`,
-          description,
-          date: dueDate,
-          colorId: YELLOW,
-        });
-      }
-    } else {
-      // Regular event
-      if (!action.date) return null;
+    if (action.type === 'event') {
+      if (!action.date) return;
       await insertEvent(calendar, {
         summary: action.title,
         description,
         date: action.date,
         time: action.time,
-        colorId: YELLOW,
+      });
+
+    } else if (action.type === 'buy') {
+      const dueDate = action.date || today;
+      const fallback = subtractDays(dueDate, 2);
+      const reminderDate = action.reminder_date && action.reminder_date >= today
+        ? action.reminder_date
+        : (fallback >= today ? fallback : today);
+
+      // Reminder to buy — a few days before
+      await insertEvent(calendar, {
+        summary: `🛒 לקנות: ${action.title}`,
+        description,
+        date: reminderDate,
+      });
+
+      // Reminder to bring — on the due day
+      if (dueDate !== reminderDate) {
+        await insertEvent(calendar, {
+          summary: `🎒 להביא: ${action.title}`,
+          description,
+          date: dueDate,
+        });
+      }
+
+    } else if (action.type === 'prepare') {
+      const dueDate = action.date || today;
+      const fallback = subtractDays(dueDate, 1);
+      const reminderDate = action.reminder_date && action.reminder_date >= today
+        ? action.reminder_date
+        : (fallback >= today ? fallback : today);
+
+      // Reminder to prepare — before the due date only, no day-of banner
+      await insertEvent(calendar, {
+        summary: `🧠 להכין: ${action.title}`,
+        description,
+        date: reminderDate,
       });
     }
   } catch (err) {

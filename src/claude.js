@@ -5,54 +5,61 @@ async function extractActions(messageText, groupName) {
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
   const { date, dayOfWeek } = TODAY();
 
-  const prompt = `You are an assistant for an Israeli family. Extract ALL actionable items from a WhatsApp group message.
+  const prompt = `אתה עוזר למשפחה ישראלית. חלץ את כל הפריטים הניתנים לפעולה מהודעת WhatsApp.
 
-Context:
-- Today: ${date} (${dayOfWeek})
-- Group: "${groupName}"
-- Parents: Or (mom) and Itay (dad)
-- Messages may be in Hebrew, English, or mixed
+הקשר:
+- היום: ${date} (${dayOfWeek})
+- קבוצה: "${groupName}"
+- הורים: אור (אמא) ואיתי (אבא)
+- הודעות עשויות להיות בעברית, אנגלית, או מעורבות
 
-A single message may contain MULTIPLE actionable items. Extract each one separately.
-
-Return ONLY a valid JSON array, no other text:
+החזר ONLY מערך JSON תקין, ללא טקסט נוסף:
 [
   {
-    "type": "event" | "prep" | "task",
+    "type": "event" | "buy" | "prepare" | "task",
     "title": "כותרת קצרה בעברית",
-    "date": "YYYY-MM-DD or null — for prep: the date the item is DUE/needed",
-    "reminder_date": "YYYY-MM-DD — for prep only: the ideal date to show the reminder. Use judgment: buying something = 3 days before, practicing/reviewing = 1 day before, signing a form = 2 days before. Must not be in the past (today is ${date}). If calculated date would be past, use today.",
+    "date": "YYYY-MM-DD or null",
+    "reminder_date": "YYYY-MM-DD or null — see rules below",
     "time": "HH:MM or null",
     "owner": "Or" | "Itay" | "both",
-    "details": "תיאור קצר בעברית של הפריט הספציפי הזה. אם יש קישור (URL) בהודעה הרלוונטי לפריט זה, חובה לכלול אותו כאן.",
-    "url": "the full URL if one appears in the message and is relevant to this item, otherwise null"
+    "details": "תיאור קצר בעברית. אם יש קישור רלוונטי בהודעה, כלול אותו כאן.",
+    "url": "URL אם קיים בהודעה ורלוונטי לפריט זה, אחרת null"
   }
 ]
 
-Return [] if nothing is actionable.
+החזר [] אם אין דבר הניתן לפעולה.
 
---- Type definitions ---
+--- הגדרות סוגים ---
 
-"event" — something happening at a specific time that you attend:
-  school trip, performance, sports match, parent meeting, holiday, class party
-  → use the actual date and time of the event
+"event" — משהו שקורה בזמן ספציפי שמשתתפים בו:
+  טיול, הופעה, משחק, פגישת הורים, חג, חגיגת כיתה, הכתבה/מבחן
+  → date = תאריך האירוע, time = שעה אם ידועה
+  → reminder_date = null
 
-"prep" — something physical to buy, make, bring, or prepare:
-  bring scissors, buy a costume, prepare a dish, print a form, charge a device, complete homework
-  → use the DATE it is needed by (we will schedule a reminder 3 days before automatically)
-  → if no explicit date, use today's date: ${date}
+"buy" — פריט פיזי שצריך לקנות ו/או להביא:
+  להביא מספריים, לקנות תחפושת, להביא אוכל, להביא צנצנת, ציוד
+  → date = התאריך שבו הפריט נדרש
+  → reminder_date = כמה ימים לפני date לקנות: בדרך כלל 2-3 ימים לפני. אסור להיות בעבר (היום: ${date})
 
-"task" — something to do or action to take: sign a permission slip, make a payment, fill out a form, reply to the teacher
-  → if the message mentions a due date, set it. If truly no due date mentioned, date should be null
+"prepare" — הכנה מנטלית או פעילות בבית, ללא רכישה פיזית:
+  לתרגל מילים לאיות, לעשות שיעורי בית, לחזור על חומר, ללמוד
+  → date = התאריך שעד אליו צריך להיות מוכן
+  → reminder_date = יום לפני date בדרך כלל (תרגול = יום לפני, שיעורי בית = יומיים לפני)
+  → אין צורך להביא כלום ביום האירוע — רק ההכנה חשובה
 
---- Date rules ---
-- "ביום חמישי" / "Thursday" = next upcoming Thursday from ${date}
-- "ביום ראשון" / "Sunday" = next upcoming Sunday from ${date}
-- "מחר" / "tomorrow" = ${new Date(Date.now() + 86400000).toISOString().split('T')[0]}
-- "השבוע" / "this week" = null
-- Always resolve relative dates using today: ${date}
+"task" — פעולה לביצוע, ללא נוכחות פיזית:
+  לחתום על טופס, לשלם, למלא שאלון, להשיב למורה
+  → date = תאריך יעד אם ידוע, אחרת null
+  → reminder_date = null
 
-Message:
+--- כללי תאריך ---
+- "ביום ראשון" = ראשון הקרוב מ-${date}
+- "ביום שני" = שני הקרוב מ-${date}
+- "ביום חמישי" = חמישי הקרוב מ-${date}
+- "מחר" = ${new Date(Date.now() + 86400000).toISOString().split('T')[0]}
+- reminder_date לעולם לא יהיה בעבר. אם החישוב נותן תאריך עבר, השתמש ב-${date}
+
+הודעה:
 ${messageText}`;
 
   try {

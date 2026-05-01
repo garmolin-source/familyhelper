@@ -15,7 +15,8 @@ async function sendDailyDigest(items) {
   if (!EMAIL_FROM || !EMAIL_TO) return;
 
   const events = items.filter((i) => i.action.type === 'event');
-  const preps = items.filter((i) => i.action.type === 'prep');
+  const buys = items.filter((i) => i.action.type === 'buy');
+  const prepares = items.filter((i) => i.action.type === 'prepare');
   const tasks = items.filter((i) => i.action.type === 'task');
 
   const today = new Date().toLocaleDateString('he-IL', {
@@ -37,12 +38,22 @@ async function sendDailyDigest(items) {
     }
   }
 
-  if (preps.length > 0) {
-    body += `🛒 דברים להכין / לקנות (${preps.length})\n${'-'.repeat(40)}\n`;
-    for (const { action, group } of preps) {
+  if (buys.length > 0) {
+    body += `🛒 דברים לקנות ולהביא (${buys.length})\n${'-'.repeat(40)}\n`;
+    for (const { action, group } of buys) {
       body += `• ${action.title}`;
       if (action.date) body += ` — נדרש עד ${action.date}`;
-      body += `\n  תזכורת ביומן 3 ימים לפני`;
+      body += `\n  [${group}]`;
+      if (action.details) body += `\n  ${action.details}`;
+      body += '\n\n';
+    }
+  }
+
+  if (prepares.length > 0) {
+    body += `🧠 דברים להתכונן אליהם (${prepares.length})\n${'-'.repeat(40)}\n`;
+    for (const { action, group } of prepares) {
+      body += `• ${action.title}`;
+      if (action.date) body += ` — עד ${action.date}`;
       body += `\n  [${group}]`;
       if (action.details) body += `\n  ${action.details}`;
       body += '\n\n';
@@ -59,7 +70,7 @@ async function sendDailyDigest(items) {
     }
   }
 
-  const total = events.length + preps.length + tasks.length;
+  const total = events.length + buys.length + prepares.length + tasks.length;
   try {
     await getTransporter().sendMail({
       from: EMAIL_FROM,
