@@ -14,9 +14,12 @@ function getTasksClient() {
 async function createTask(action) {
   const tasks = getTasksClient();
 
+  let notes = action.details || '';
+  if (action.url) notes += `\n\n🔗 ${action.url}`;
+
   const task = {
     title: action.title,
-    notes: action.details || '',
+    notes,
   };
 
   if (action.date) {

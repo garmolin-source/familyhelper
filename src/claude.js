@@ -19,11 +19,12 @@ Return ONLY a valid JSON array, no other text:
 [
   {
     "type": "event" | "prep" | "task",
-    "title": "short title in English",
+    "title": "כותרת קצרה בעברית",
     "date": "YYYY-MM-DD or null",
     "time": "HH:MM or null",
     "owner": "Or" | "Itay" | "both",
-    "details": "brief English summary of just this specific item"
+    "details": "תיאור קצר בעברית של הפריט הספציפי הזה. אם יש קישור (URL) בהודעה הרלוונטי לפריט זה, חובה לכלול אותו כאן.",
+    "url": "the full URL if one appears in the message and is relevant to this item, otherwise null"
   }
 ]
 

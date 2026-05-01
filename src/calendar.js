@@ -66,7 +66,7 @@ async function createCalendarEvent(action) {
       sendUpdates: 'none', // no email spam — digest handles notifications
       requestBody: {
         summary: title,
-        description: action.details,
+        description: action.url ? `${action.details || ''}\n\n🔗 ${action.url}` : action.details,
         colorId: FLAMINGO,
         start,
         end,
