@@ -7,7 +7,7 @@ async function extractActions(messageText, groupName, childInfo = null) {
 
   const childContext = childInfo
     ? `- הילד/ה: ${childInfo.child} (${childInfo.grade}, גיל ${childInfo.age}) — ציין את שם הילד בכותרת ובפרטים`
-    : '- הילד: לא ידוע — אם ניתן לזהות מההקשר, ציין`;
+    : '- הילד: לא ידוע — אם ניתן לזהות מההקשר, ציין';
 
   const prompt = `אתה עוזר למשפחה ישראלית. חלץ את כל הפריטים הניתנים לפעולה מהודעת WhatsApp.
 
