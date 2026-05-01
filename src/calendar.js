@@ -31,11 +31,9 @@ async function createCalendarEvent(action) {
   let isAllDay = !action.time;
 
   if (action.type === 'prep') {
-    // Schedule reminder 3 days before the due date at 8:30am
     const dueDate = action.date || new Date().toISOString().split('T')[0];
     startDate = subtractDays(dueDate, PREP_DAYS_BEFORE);
-    startTime = PREP_HOUR;
-    isAllDay = false;
+    isAllDay = true; // appears as a banner, doesn't block time slots
     title = `🛒 ${action.title} — needed ${action.date ? 'by ' + action.date : 'soon'}`;
   }
 

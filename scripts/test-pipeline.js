@@ -44,6 +44,9 @@ async function run() {
 
       if (action.type === 'event') {
         await createCalendarEvent(action);
+      } else if (action.type === 'prep') {
+        await createCalendarEvent(action);
+        await createTask(action);
       } else if (action.type === 'task') {
         await createTask(action);
       }
