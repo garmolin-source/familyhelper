@@ -47,6 +47,9 @@ async function processMessage(sock, msg) {
   for (const action of actions) {
     if (action.type === 'event') {
       await createCalendarEvent(action);
+    } else if (action.type === 'prep') {
+      await createCalendarEvent(action); // 3 days before at 8:30am
+      await createTask(action);          // also in Google Tasks
     } else if (action.type === 'task') {
       await createTask(action);
     }

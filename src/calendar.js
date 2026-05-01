@@ -6,46 +6,69 @@ const {
   GOOGLE_CALENDAR_ID,
 } = require('./config');
 
+const FLAMINGO = '4'; // Google Calendar colorId for Flamingo (pink)
+const PREP_HOUR = '08:30';
+const PREP_DAYS_BEFORE = 3;
+
 function getCalendarClient() {
   const auth = new google.auth.OAuth2(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET);
   auth.setCredentials({ refresh_token: GOOGLE_REFRESH_TOKEN });
   return google.calendar({ version: 'v3', auth });
 }
 
-async function createCalendarEvent(action) {
-  if (!action.date) {
-    console.log('No date — skipping calendar, will appear as task in email');
-    return null;
-  }
+function subtractDays(dateStr, days) {
+  const d = new Date(dateStr);
+  d.setDate(d.getDate() - days);
+  return d.toISOString().split('T')[0];
+}
 
+async function createCalendarEvent(action) {
   const calendar = getCalendarClient();
 
-  const start = action.time
-    ? { dateTime: `${action.date}T${action.time}:00`, timeZone: 'Asia/Jerusalem' }
-    : { date: action.date };
+  let title = action.title;
+  let startDate = action.date;
+  let startTime = action.time;
+  let isAllDay = !action.time;
 
-  const end = action.time
-    ? { dateTime: `${action.date}T${action.time}:00`, timeZone: 'Asia/Jerusalem' }
-    : { date: action.date };
+  if (action.type === 'prep') {
+    // Schedule reminder 3 days before the due date at 8:30am
+    const dueDate = action.date || new Date().toISOString().split('T')[0];
+    startDate = subtractDays(dueDate, PREP_DAYS_BEFORE);
+    startTime = PREP_HOUR;
+    isAllDay = false;
+    title = `🛒 ${action.title} — needed ${action.date ? 'by ' + action.date : 'soon'}`;
+  }
 
-  // For timed events, default to 1 hour duration
-  if (action.time) {
-    const [h, m] = action.time.split(':').map(Number);
-    const endHour = h + 1;
-    end.dateTime = `${action.date}T${String(endHour).padStart(2, '0')}:${String(m).padStart(2, '0')}:00`;
+  if (!startDate) return null;
+
+  const start = isAllDay
+    ? { date: startDate }
+    : { dateTime: `${startDate}T${startTime}:00`, timeZone: 'Asia/Jerusalem' };
+
+  const end = isAllDay
+    ? { date: startDate }
+    : { dateTime: `${startDate}T${startTime}:00`, timeZone: 'Asia/Jerusalem' };
+
+  // Add 1 hour duration for timed events
+  if (!isAllDay) {
+    const [h, m] = startTime.split(':').map(Number);
+    const endHour = String(h + 1).padStart(2, '0');
+    const endMin = String(m).padStart(2, '0');
+    end.dateTime = `${startDate}T${endHour}:${endMin}:00`;
   }
 
   try {
     const event = await calendar.events.insert({
       calendarId: GOOGLE_CALENDAR_ID,
       requestBody: {
-        summary: action.title,
+        summary: title,
         description: action.details,
+        colorId: FLAMINGO,
         start,
         end,
       },
     });
-    console.log('Calendar event created:', event.data.htmlLink);
+    console.log(`Calendar event created: ${title}`);
     return event.data.htmlLink;
   } catch (err) {
     console.error('Calendar error:', err.message);

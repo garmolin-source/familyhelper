@@ -15,6 +15,7 @@ async function sendDailyDigest(items) {
   if (!EMAIL_FROM || !EMAIL_TO) return;
 
   const events = items.filter((i) => i.action.type === 'event');
+  const preps = items.filter((i) => i.action.type === 'prep');
   const tasks = items.filter((i) => i.action.type === 'task');
 
   const today = new Date().toLocaleDateString('he-IL', {
@@ -25,7 +26,7 @@ async function sendDailyDigest(items) {
   let body = `סיכום יומי – ${today}\n${'='.repeat(50)}\n\n`;
 
   if (events.length > 0) {
-    body += `📅 אירועים שנוספו ללוח השנה (${events.length})\n${'-'.repeat(40)}\n`;
+    body += `📅 אירועים ביומן (${events.length})\n${'-'.repeat(40)}\n`;
     for (const { action, group } of events) {
       body += `• ${action.title}`;
       if (action.date) body += ` — ${action.date}`;
@@ -36,22 +37,34 @@ async function sendDailyDigest(items) {
     }
   }
 
-  if (tasks.length > 0) {
-    body += `✅ משימות לביצוע (${tasks.length})\n${'-'.repeat(40)}\n`;
-    for (const { action, group } of tasks) {
+  if (preps.length > 0) {
+    body += `🛒 דברים להכין / לקנות (${preps.length})\n${'-'.repeat(40)}\n`;
+    for (const { action, group } of preps) {
       body += `• ${action.title}`;
-      if (action.date) body += ` — עד ${action.date}`;
+      if (action.date) body += ` — נדרש עד ${action.date}`;
+      body += `\n  תזכורת ביומן 3 ימים לפני`;
       body += `\n  [${group}]`;
       if (action.details) body += `\n  ${action.details}`;
       body += '\n\n';
     }
   }
 
+  if (tasks.length > 0) {
+    body += `✅ משימות לביצוע (${tasks.length})\n${'-'.repeat(40)}\n`;
+    for (const { action, group } of tasks) {
+      body += `• ${action.title}`;
+      body += `\n  [${group}]`;
+      if (action.details) body += `\n  ${action.details}`;
+      body += '\n\n';
+    }
+  }
+
+  const total = events.length + preps.length + tasks.length;
   try {
     await getTransporter().sendMail({
       from: EMAIL_FROM,
       to: EMAIL_TO,
-      subject: `📋 Family Helper — סיכום יומי (${events.length} אירועים, ${tasks.length} משימות)`,
+      subject: `📋 Family Helper — סיכום יומי (${total} פריטים)`,
       text: body,
     });
     console.log('Daily digest sent to', EMAIL_TO);

@@ -13,34 +13,43 @@ Context:
 - Parents: Or (mom) and Itay (dad)
 - Messages may be in Hebrew, English, or mixed
 
-A single message may contain MULTIPLE actionable items. For example, a teacher's message might include homework, something to bring, and an upcoming event — these are THREE separate items.
-
-For EACH actionable item found, create a separate entry. Ignore pure social chat with no action required.
+A single message may contain MULTIPLE actionable items. Extract each one separately.
 
 Return ONLY a valid JSON array, no other text:
 [
   {
-    "type": "event" | "task",
+    "type": "event" | "prep" | "task",
     "title": "short title in English",
-    "date": "YYYY-MM-DD or null if unknown",
+    "date": "YYYY-MM-DD or null",
     "time": "HH:MM or null",
     "owner": "Or" | "Itay" | "both",
     "details": "brief English summary of just this specific item"
   }
 ]
 
-Return an empty array [] if there is nothing actionable.
+Return [] if nothing is actionable.
 
-Item types:
-- "event" = something that happens at a specific time: trip, performance, match, meeting, school event, holiday
-- "task" = something to do or bring: homework, item to bring, form to sign, payment to make, preparation needed
+--- Type definitions ---
 
-Rules for dates:
-- "ביום חמישי" / "Thursday" = next upcoming ${date < '2026-05-07' ? 'Thursday 2026-05-07' : 'Thursday'}
-- "השבוע" / "this week" = null for date, mention in details
+"event" — something happening at a specific time that you attend:
+  school trip, performance, sports match, parent meeting, holiday, class party
+  → use the actual date and time of the event
+
+"prep" — something physical to buy, make, bring, or prepare that has a due date:
+  bring scissors, buy a costume, prepare a dish, print a form, charge a device
+  → use the DATE it is needed by (we will schedule a reminder 3 days before automatically)
+  → if no explicit date, use today's date: ${date}
+
+"task" — something to do with no specific due date, or an action to take online/by phone:
+  sign a permission slip, make a payment, fill out a form, reply to the teacher
+  → date should be null
+
+--- Date rules ---
+- "ביום חמישי" / "Thursday" = next upcoming Thursday from ${date}
+- "ביום ראשון" / "Sunday" = next upcoming Sunday from ${date}
 - "מחר" / "tomorrow" = ${new Date(Date.now() + 86400000).toISOString().split('T')[0]}
-- "ביום ראשון" / "Sunday" = next upcoming Sunday
-- Always resolve relative dates using today's date: ${date}
+- "השבוע" / "this week" = null
+- Always resolve relative dates using today: ${date}
 
 Message:
 ${messageText}`;
