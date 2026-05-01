@@ -22,12 +22,8 @@ async function createTask(action) {
     notes,
   };
 
-  const dueDate = (action.type === 'buy' || action.type === 'prepare') && action.reminder_date
-    ? action.reminder_date
-    : action.date;
-
-  if (dueDate) {
-    task.due = `${dueDate}T00:00:00.000Z`;
+  if (action.date) {
+    task.due = `${action.date}T00:00:00.000Z`;
   }
 
   try {
