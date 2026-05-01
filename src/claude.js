@@ -35,14 +35,13 @@ Return [] if nothing is actionable.
   school trip, performance, sports match, parent meeting, holiday, class party
   → use the actual date and time of the event
 
-"prep" — something physical to buy, make, bring, or prepare that has a due date:
-  bring scissors, buy a costume, prepare a dish, print a form, charge a device
+"prep" — something physical to buy, make, bring, or prepare:
+  bring scissors, buy a costume, prepare a dish, print a form, charge a device, complete homework
   → use the DATE it is needed by (we will schedule a reminder 3 days before automatically)
   → if no explicit date, use today's date: ${date}
 
-"task" — something to do with no specific due date, or an action to take online/by phone:
-  sign a permission slip, make a payment, fill out a form, reply to the teacher
-  → date should be null
+"task" — something to do or action to take: sign a permission slip, make a payment, fill out a form, reply to the teacher
+  → if the message mentions a due date, set it. If truly no due date mentioned, date should be null
 
 --- Date rules ---
 - "ביום חמישי" / "Thursday" = next upcoming Thursday from ${date}
