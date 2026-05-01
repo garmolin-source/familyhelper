@@ -3,7 +3,7 @@ const { extractActions, extractActionsFromImage } = require('./claude');
 const { createCalendarEvent } = require('./calendar');
 const { createTask } = require('./tasks');
 const { addAction } = require('./store');
-const { MONITORED_GROUPS } = require('./config');
+const { MONITORED_GROUPS, getChildForGroup } = require('./config');
 
 const processedIds = new Set();
 
@@ -27,46 +27,34 @@ async function processMessage(sock, msg) {
   );
   if (!matchedGroup) return;
 
+  const childInfo = getChildForGroup(groupName);
   const m = msg.message;
   let actions = [];
 
-  // Image message — send to Claude vision (reads flyers, posters, text in images)
   if (m?.imageMessage) {
     const caption = m.imageMessage.caption || '';
-    console.log(`[${groupName}] Image message (caption: "${caption.substring(0, 60)}")`);
+    console.log(`[${groupName}] Image message`);
     try {
       const buffer = await downloadMediaMessage(msg, 'buffer', {}, { logger: { level: 'silent', child: () => ({}) } });
       const base64 = buffer.toString('base64');
-      actions = await extractActionsFromImage(base64, caption, groupName);
+      actions = await extractActionsFromImage(base64, caption, groupName, childInfo);
     } catch (err) {
       console.error('Image download error:', err.message);
-      // Fall back to caption only if image download fails
-      if (caption) actions = await extractActions(caption, groupName);
+      if (caption) actions = await extractActions(caption, groupName, childInfo);
     }
-
-  // Document/file message — read caption
   } else if (m?.documentMessage) {
     const caption = m.documentMessage.caption || m.documentMessage.fileName || '';
     if (!caption.trim()) return;
-    console.log(`[${groupName}] Document: ${caption.substring(0, 80)}`);
-    actions = await extractActions(caption, groupName);
-
-  // Video message — read caption
+    actions = await extractActions(caption, groupName, childInfo);
   } else if (m?.videoMessage) {
     const caption = m.videoMessage.caption || '';
     if (!caption.trim()) return;
-    console.log(`[${groupName}] Video caption: ${caption.substring(0, 80)}`);
-    actions = await extractActions(caption, groupName);
-
-  // Regular text message
+    actions = await extractActions(caption, groupName, childInfo);
   } else {
-    const text =
-      m?.conversation ||
-      m?.extendedTextMessage?.text ||
-      '';
+    const text = m?.conversation || m?.extendedTextMessage?.text || '';
     if (!text.trim()) return;
     console.log(`[${groupName}] Text: ${text.substring(0, 80)}...`);
-    actions = await extractActions(text, groupName);
+    actions = await extractActions(text, groupName, childInfo);
   }
 
   if (!actions.length) {

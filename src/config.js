@@ -5,8 +5,26 @@ const MONITORED_GROUPS = (process.env.MONITORED_GROUPS || '')
   .map((g) => g.trim())
   .filter(Boolean);
 
+// Which child each group belongs to (partial match on group name)
+const GROUP_CHILD_MAP = [
+  { keywords: ['כיתה א', 'מהמורה', 'מעגלי צהריים', 'כדורגל', 'ג׳ודו'], child: 'כרמי', age: 7, grade: 'כיתה א׳' },
+  { keywords: ['גן רון', 'צהרון רון'], child: 'ארז', age: 4.5, grade: 'גן חובה' },
+];
+
+function getChildForGroup(groupName) {
+  const lower = groupName.toLowerCase();
+  for (const entry of GROUP_CHILD_MAP) {
+    if (entry.keywords.some((k) => lower.includes(k.toLowerCase()))) {
+      return entry;
+    }
+  }
+  return null;
+}
+
 module.exports = {
   MONITORED_GROUPS,
+  GROUP_CHILD_MAP,
+  getChildForGroup,
   ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
   GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
   GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,

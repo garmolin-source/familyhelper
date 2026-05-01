@@ -1,9 +1,13 @@
 const Anthropic = require('@anthropic-ai/sdk');
 const { TODAY } = require('./config');
 
-async function extractActions(messageText, groupName) {
+async function extractActions(messageText, groupName, childInfo = null) {
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
   const { date, dayOfWeek } = TODAY();
+
+  const childContext = childInfo
+    ? `- הילד/ה: ${childInfo.child} (${childInfo.grade}, גיל ${childInfo.age}) — ציין את שם הילד בכותרת ובפרטים`
+    : '- הילד: לא ידוע — אם ניתן לזהות מההקשר, ציין`;
 
   const prompt = `אתה עוזר למשפחה ישראלית. חלץ את כל הפריטים הניתנים לפעולה מהודעת WhatsApp.
 
@@ -11,13 +15,14 @@ async function extractActions(messageText, groupName) {
 - היום: ${date} (${dayOfWeek})
 - קבוצה: "${groupName}"
 - הורים: אור (אמא) ואיתי (אבא)
+${childContext}
 - הודעות עשויות להיות בעברית, אנגלית, או מעורבות
 
 החזר ONLY מערך JSON תקין, ללא טקסט נוסף:
 [
   {
     "type": "event" | "buy" | "prepare" | "task",
-    "title": "כותרת קצרה בעברית",
+    "title": "כותרת ספציפית בעברית — כלול: שם הילד + מה + לאיזה אירוע + מיקום אם רלוונטי. לדוגמה: 'כרמי: לקנות ציוד לאירוע עששיות - חורשת אבנר' או 'ארז: לתרגל מילים להכתבה ביום ראשון'",
     "date": "YYYY-MM-DD or null",
     "reminder_date": "YYYY-MM-DD or null — see rules below",
     "time": "HH:MM or null",
@@ -78,7 +83,7 @@ ${messageText}`;
   }
 }
 
-async function extractActionsFromImage(base64Image, caption, groupName) {
+async function extractActionsFromImage(base64Image, caption, groupName, childInfo = null) {
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
   const { date, dayOfWeek } = TODAY();
 
@@ -87,7 +92,8 @@ async function extractActionsFromImage(base64Image, caption, groupName) {
     : 'קרא את התמונה וחלץ את כל הפריטים הניתנים לפעולה.';
 
   // Reuse the same system logic with an image content block
-  const systemContext = `אתה עוזר למשפחה ישראלית. היום: ${date} (${dayOfWeek}). קבוצה: "${groupName}". הורים: אור ואיתי.
+  const childContext = childInfo ? `הילד/ה: ${childInfo.child} (${childInfo.grade}, גיל ${childInfo.age}).` : '';
+  const systemContext = `אתה עוזר למשפחה ישראלית. היום: ${date} (${dayOfWeek}). קבוצה: "${groupName}". הורים: אור ואיתי. ${childContext}
 
 החזר ONLY מערך JSON תקין עם אותו פורמט כמו תמיד:
 [{ "type": "event"|"buy"|"prepare"|"task", "title": "כותרת בעברית", "date": "YYYY-MM-DD or null", "reminder_date": "YYYY-MM-DD or null", "time": "HH:MM or null", "owner": "Or"|"Itay"|"both", "details": "תיאור בעברית", "url": null }]
