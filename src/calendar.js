@@ -6,7 +6,7 @@ const {
   GOOGLE_CALENDAR_ID,
 } = require('./config');
 
-const FLAMINGO = '4'; // Google Calendar colorId for Flamingo (pink)
+const FLAMINGO = '5'; // Google Calendar colorId for Banana (yellow)
 const PREP_HOUR = '08:30';
 const PREP_DAYS_BEFORE = 3;
 
