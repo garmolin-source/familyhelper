@@ -10,6 +10,7 @@ const GROUP_CHILD_MAP = [
   { keywords: ['כיתה א', 'מהמורה', 'מעגלי צהריים', 'כדורגל', 'ג׳ודו'], child: 'כרמי', age: 7, grade: 'כיתה א׳' },
   { keywords: ['גן רון', 'צהרון רון', 'תנועה יצירתית'], child: 'ארז', age: 4.5, grade: 'גן חובה' },
   { keywords: ['כדורשת אילנות'], child: null, owner: 'אור', grade: 'קבוצת כדורשת' },
+  { keywords: ['גרמולין ניב זינגר', 'משפחת גרמולין'], child: null, owner: 'both', grade: 'משפחה' },
 ];
 
 function getChildForGroup(groupName) {
