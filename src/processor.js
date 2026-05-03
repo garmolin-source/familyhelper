@@ -4,6 +4,8 @@ const { createCalendarEvent, updateCalendarEvent, cancelCalendarEvent } = requir
 const { createTask } = require('./tasks');
 const { addAction } = require('./store');
 const { findBestMatch } = require('./event-store');
+const { pickAndSignUp } = require('./sheets');
+const { sendImmediateEmail } = require('./email');
 const { MONITORED_GROUPS, getChildForGroup } = require('./config');
 
 const processedIds = new Set();
@@ -78,6 +80,19 @@ async function processMessage(sock, msg) {
 
     } else if (action.type === 'task') {
       await createTask(action);
+
+      // Auto sign-up if there's a sheet URL
+      if (action.url && action.url.includes('spreadsheets')) {
+        const signerName = childInfo?.child || 'אור';
+        const signup = await pickAndSignUp(action.url, signerName, `${groupName}: ${action.title}`);
+        if (signup) {
+          action.details = (action.details || '') + `\n\n✍️ נרשמת אוטומטית להביא: ${signup.item}`;
+          await sendImmediateEmail({
+            subject: `✍️ נרשמת ל: ${signup.item} — ${action.title}`,
+            body: `Family Helper נרשם אוטומטית בשמך.\n\nאירוע: ${action.title}\nקבוצה: ${groupName}\nפריט שנבחר: ${signup.item}\nסיבה: ${signup.reason}\n\n🔗 לשינוי: ${signup.url}`,
+          });
+        }
+      }
 
     } else if (action.type === 'update') {
       const match = findBestMatch({ group: groupName, keywords: action.search_keywords, date: action.date });

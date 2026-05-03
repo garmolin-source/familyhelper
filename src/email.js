@@ -16,6 +16,16 @@ function getTransporter() {
   });
 }
 
+async function sendImmediateEmail({ subject, body }) {
+  if (!EMAIL_FROM || !EMAIL_TO) return;
+  try {
+    await getTransporter().sendMail({ from: EMAIL_FROM, to: EMAIL_TO, subject, text: body });
+    console.log('Immediate email sent:', subject);
+  } catch (err) {
+    console.error('Email error:', err.message);
+  }
+}
+
 async function sendDailyDigest(items) {
   if (!EMAIL_FROM || !EMAIL_TO) return;
 
@@ -119,4 +129,4 @@ async function sendDailyDigest(items) {
   }
 }
 
-module.exports = { sendDailyDigest };
+module.exports = { sendDailyDigest, sendImmediateEmail };
