@@ -21,7 +21,7 @@ ${childContext}
 החזר ONLY מערך JSON תקין, ללא טקסט נוסף:
 [
   {
-    "type": "event" | "buy" | "prepare" | "task",
+    "type": "event" | "buy" | "prepare" | "task" | "update" | "cancel",
     "title": "כותרת ספציפית בעברית — כלול: שם הילד + מה + לאיזה אירוע + מיקום אם רלוונטי. לדוגמה: 'כרמי: לקנות ציוד לאירוע עששיות - חורשת אבנר' או 'ארז: לתרגל מילים להכתבה ביום ראשון'",
     "date": "YYYY-MM-DD or null",
     "reminder_date": "YYYY-MM-DD or null — see rules below",
@@ -56,6 +56,17 @@ ${childContext}
   לחתום על טופס, לשלם, למלא שאלון, להשיב למורה
   → date = תאריך יעד אם ידוע, אחרת null
   → reminder_date = null
+
+"update" — message changes details of a previously announced event:
+  time changed, venue changed, new items to bring, additional info
+  → title = short description of what changed
+  → details = the full change in Hebrew
+  → include "search_keywords" field: 2-3 Hebrew keywords to find the original event (e.g. "עששיות חורשת אבנר")
+  → include "changes" object: { "time": "HH:MM or null", "date": "YYYY-MM-DD or null", "details": "what changed" }
+
+"cancel" — event or activity is cancelled
+  → title = what was cancelled
+  → include "search_keywords" field: 2-3 Hebrew keywords to find the original event
 
 --- כללי תאריך ---
 - "ביום ראשון" = ראשון הקרוב מ-${date}

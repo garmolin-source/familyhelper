@@ -23,6 +23,9 @@ async function sendDailyDigest(items) {
   const buys = items.filter((i) => i.action.type === 'buy');
   const prepares = items.filter((i) => i.action.type === 'prepare');
   const tasks = items.filter((i) => i.action.type === 'task');
+  const updates = items.filter((i) => i.action.type === 'update');
+  const cancels = items.filter((i) => i.action.type === 'cancel');
+  const conflicts = items.flatMap((i) => i.action._conflicts || []);
 
   const today = new Date().toLocaleDateString('he-IL', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
@@ -30,6 +33,33 @@ async function sendDailyDigest(items) {
   });
 
   let body = `סיכום יומי – ${today}\n${'='.repeat(50)}\n\n`;
+
+  if (conflicts.length > 0) {
+    body += `⚠️ התנגשויות ביומן (${conflicts.length})\n${'-'.repeat(40)}\n`;
+    for (const c of conflicts) {
+      body += `• "${c.newEvent}" מתנגש עם "${c.conflictWith}"\n`;
+      body += `  ${c.date}${c.time ? ' בשעה ' + c.time : ''}\n\n`;
+    }
+  }
+
+  if (updates.length > 0) {
+    body += `✏️ עדכונים לאירועים קיימים (${updates.length})\n${'-'.repeat(40)}\n`;
+    for (const { action } of updates) {
+      body += `• ${action.title}`;
+      if (action._updatedEvent) body += ` ← עדכן: "${action._updatedEvent}"`;
+      body += `\n  ${action.details || ''}\n\n`;
+    }
+  }
+
+  if (cancels.length > 0) {
+    body += `❌ ביטולים (${cancels.length})\n${'-'.repeat(40)}\n`;
+    for (const { action } of cancels) {
+      body += `• ${action.title}`;
+      if (action._cancelledEvent) body += ` ← בוטל: "${action._cancelledEvent}"`;
+      body += '\n\n';
+    }
+  }
+
 
   if (events.length > 0) {
     body += `📅 אירועים ביומן (${events.length})\n${'-'.repeat(40)}\n`;
@@ -75,7 +105,7 @@ async function sendDailyDigest(items) {
     }
   }
 
-  const total = events.length + buys.length + prepares.length + tasks.length;
+  const total = events.length + buys.length + prepares.length + tasks.length + updates.length + cancels.length;
   try {
     await getTransporter().sendMail({
       from: EMAIL_FROM,

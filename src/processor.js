@@ -1,8 +1,9 @@
 const { downloadMediaMessage } = require('@whiskeysockets/baileys');
 const { extractActions, extractActionsFromImage } = require('./claude');
-const { createCalendarEvent } = require('./calendar');
+const { createCalendarEvent, updateCalendarEvent, cancelCalendarEvent } = require('./calendar');
 const { createTask } = require('./tasks');
 const { addAction } = require('./store');
+const { findBestMatch } = require('./event-store');
 const { MONITORED_GROUPS, getChildForGroup } = require('./config');
 
 const processedIds = new Set();
@@ -65,14 +66,38 @@ async function processMessage(sock, msg) {
   console.log(`Claude extracted ${actions.length} item(s)`);
 
   for (const action of actions) {
+    action._group = groupName;
+
     if (action.type === 'event') {
-      await createCalendarEvent(action);
+      const { conflicts } = await createCalendarEvent(action);
+      if (conflicts?.length) action._conflicts = conflicts;
+
     } else if (action.type === 'buy' || action.type === 'prepare') {
       await createCalendarEvent(action);
       await createTask(action);
+
     } else if (action.type === 'task') {
       await createTask(action);
+
+    } else if (action.type === 'update') {
+      const match = findBestMatch({ group: groupName, keywords: action.search_keywords, date: action.date });
+      if (match) {
+        await updateCalendarEvent(match.eventId, action.changes || {});
+        action._updatedEvent = match.title;
+      } else {
+        console.log(`  → Could not find original event to update`);
+      }
+
+    } else if (action.type === 'cancel') {
+      const match = findBestMatch({ group: groupName, keywords: action.search_keywords, date: action.date });
+      if (match) {
+        await cancelCalendarEvent(match.eventId);
+        action._cancelledEvent = match.title;
+      } else {
+        console.log(`  → Could not find original event to cancel`);
+      }
     }
+
     addAction(action, groupName, action.title);
     console.log(`  → [${action.type}] ${action.title}`);
   }

@@ -5,6 +5,7 @@ const {
   GOOGLE_REFRESH_TOKEN,
   GOOGLE_CALENDAR_ID,
 } = require('./config');
+const { storeEvent, removeEvent } = require('./event-store');
 
 const YELLOW = '5';
 
@@ -26,7 +27,24 @@ function getAttendees() {
     .map((email) => ({ email }));
 }
 
-async function insertEvent(calendar, { summary, description, date, time }) {
+async function checkConflicts(calendar, date, time) {
+  if (!time || !date) return [];
+  try {
+    const start = new Date(`${date}T${time}:00+03:00`);
+    const end = new Date(start.getTime() + 60 * 60 * 1000);
+    const res = await calendar.events.list({
+      calendarId: GOOGLE_CALENDAR_ID,
+      timeMin: start.toISOString(),
+      timeMax: end.toISOString(),
+      singleEvents: true,
+    });
+    return (res.data.items || []).filter((e) => e.colorId !== YELLOW); // exclude our own events
+  } catch {
+    return [];
+  }
+}
+
+async function insertEvent(calendar, { summary, description, date, time, group }) {
   const isAllDay = !time;
   const start = isAllDay
     ? { date }
@@ -42,7 +60,7 @@ async function insertEvent(calendar, { summary, description, date, time }) {
     ? { date }
     : { dateTime: `${date}T${endTime}:00`, timeZone: 'Asia/Jerusalem' };
 
-  await calendar.events.insert({
+  const res = await calendar.events.insert({
     calendarId: GOOGLE_CALENDAR_ID,
     sendUpdates: 'none',
     requestBody: {
@@ -55,6 +73,12 @@ async function insertEvent(calendar, { summary, description, date, time }) {
     },
   });
   console.log(`Calendar event created: ${summary}`);
+
+  if (group) {
+    storeEvent({ eventId: res.data.id, group, title: summary, date, time });
+  }
+
+  return res.data;
 }
 
 async function createCalendarEvent(action) {
@@ -64,14 +88,23 @@ async function createCalendarEvent(action) {
     ? `${action.details || ''}\n\n🔗 ${action.url}`
     : action.details;
 
+  const conflicts = [];
+
   try {
     if (action.type === 'event') {
-      if (!action.date) return;
+      if (!action.date) return { conflicts };
+
+      const overlaps = await checkConflicts(calendar, action.date, action.time);
+      if (overlaps.length) {
+        conflicts.push(...overlaps.map((e) => ({ newEvent: action.title, conflictWith: e.summary, date: action.date, time: action.time })));
+      }
+
       await insertEvent(calendar, {
         summary: action.title,
         description,
         date: action.date,
         time: action.time,
+        group: action._group,
       });
 
     } else if (action.type === 'buy') {
@@ -81,20 +114,9 @@ async function createCalendarEvent(action) {
         ? action.reminder_date
         : (fallback >= today ? fallback : today);
 
-      // Reminder to buy — a few days before
-      await insertEvent(calendar, {
-        summary: `🛒 לקנות: ${action.title}`,
-        description,
-        date: reminderDate,
-      });
-
-      // Reminder to bring — on the due day
+      await insertEvent(calendar, { summary: `🛒 לקנות: ${action.title}`, description, date: reminderDate });
       if (dueDate !== reminderDate) {
-        await insertEvent(calendar, {
-          summary: `🎒 להביא: ${action.title}`,
-          description,
-          date: dueDate,
-        });
+        await insertEvent(calendar, { summary: `🎒 להביא: ${action.title}`, description, date: dueDate });
       }
 
     } else if (action.type === 'prepare') {
@@ -104,16 +126,59 @@ async function createCalendarEvent(action) {
         ? action.reminder_date
         : (fallback >= today ? fallback : today);
 
-      // Reminder to prepare — before the due date only, no day-of banner
-      await insertEvent(calendar, {
-        summary: `🧠 להכין: ${action.title}`,
-        description,
-        date: reminderDate,
-      });
+      await insertEvent(calendar, { summary: `🧠 להכין: ${action.title}`, description, date: reminderDate });
     }
   } catch (err) {
     console.error('Calendar error:', err.message);
   }
+
+  return { conflicts };
 }
 
-module.exports = { createCalendarEvent };
+async function updateCalendarEvent(eventId, changes) {
+  const calendar = getCalendarClient();
+  try {
+    const existing = await calendar.events.get({ calendarId: GOOGLE_CALENDAR_ID, eventId });
+    const patch = { ...existing.data };
+
+    if (changes.title) patch.summary = changes.title;
+    if (changes.details) patch.description = changes.details;
+    if (changes.date && changes.time) {
+      patch.start = { dateTime: `${changes.date}T${changes.time}:00`, timeZone: 'Asia/Jerusalem' };
+      const [h, m] = changes.time.split(':').map(Number);
+      const endTime = `${String(h + 1).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+      patch.end = { dateTime: `${changes.date}T${endTime}:00`, timeZone: 'Asia/Jerusalem' };
+    } else if (changes.date) {
+      patch.start = { date: changes.date };
+      patch.end = { date: changes.date };
+    } else if (changes.time) {
+      const date = existing.data.start.dateTime?.split('T')[0] || existing.data.start.date;
+      patch.start = { dateTime: `${date}T${changes.time}:00`, timeZone: 'Asia/Jerusalem' };
+      const [h, m] = changes.time.split(':').map(Number);
+      const endTime = `${String(h + 1).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+      patch.end = { dateTime: `${date}T${endTime}:00`, timeZone: 'Asia/Jerusalem' };
+    }
+
+    await calendar.events.update({ calendarId: GOOGLE_CALENDAR_ID, eventId, sendUpdates: 'none', requestBody: patch });
+    console.log(`Calendar event updated: ${patch.summary}`);
+    return patch.summary;
+  } catch (err) {
+    console.error('Update error:', err.message);
+    return null;
+  }
+}
+
+async function cancelCalendarEvent(eventId) {
+  const calendar = getCalendarClient();
+  try {
+    await calendar.events.delete({ calendarId: GOOGLE_CALENDAR_ID, eventId, sendUpdates: 'none' });
+    removeEvent(eventId);
+    console.log(`Calendar event cancelled: ${eventId}`);
+    return true;
+  } catch (err) {
+    console.error('Cancel error:', err.message);
+    return false;
+  }
+}
+
+module.exports = { createCalendarEvent, updateCalendarEvent, cancelCalendarEvent };
