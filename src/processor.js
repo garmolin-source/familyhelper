@@ -1,7 +1,7 @@
 const { downloadMediaMessage } = require('@whiskeysockets/baileys');
 const { extractActions, extractActionsFromImage } = require('./claude');
 const { createCalendarEvent, updateCalendarEvent, cancelCalendarEvent } = require('./calendar');
-const { createTask } = require('./tasks');
+const { createTask, updateTask } = require('./tasks');
 const { addAction } = require('./store');
 const { findBestMatch } = require('./event-store');
 const { pickAndSignUp } = require('./sheets');
@@ -71,15 +71,38 @@ async function processMessage(sock, msg) {
     action._group = groupName;
 
     if (action.type === 'event') {
-      const { conflicts } = await createCalendarEvent(action);
+      const { conflicts, eventIds } = await createCalendarEvent(action);
       if (conflicts?.length) action._conflicts = conflicts;
 
     } else if (action.type === 'buy' || action.type === 'prepare') {
-      await createCalendarEvent(action);
-      await createTask(action);
+      const { eventIds } = await createCalendarEvent(action);
+      const taskResult = await createTask(action);
+
+      // Auto sign-up if there's a sheet URL (e.g. "bring something" + sign-up sheet)
+      if (action.url && action.url.includes('spreadsheets')) {
+        const signerName = childInfo?.child || 'אור';
+        const signup = await pickAndSignUp(action.url, signerName, `${groupName}: ${action.title}`);
+        if (signup) {
+          action.details = (action.details || '') + `\n\n✍️ נרשמת אוטומטית להביא: ${signup.item}`;
+          const updatedTitle = `${action.title} — ${signup.item}`;
+          const updatedNotes = action.details + `\nסיבה: ${signup.reason}`;
+          // Update calendar events to reflect the specific item
+          for (const eventId of eventIds || []) {
+            await updateCalendarEvent(eventId, { title: updatedTitle, details: updatedNotes });
+          }
+          // Update task to reflect the specific item
+          if (taskResult?.id) {
+            await updateTask(taskResult.id, { title: updatedTitle, notes: updatedNotes });
+          }
+          await sendImmediateEmail({
+            subject: `✍️ נרשמת ל: ${signup.item} — ${action.title}`,
+            body: `Family Helper נרשם אוטומטית בשמך.\n\nאירוע: ${action.title}\nקבוצה: ${groupName}\nפריט שנבחר: ${signup.item}\nסיבה: ${signup.reason}\n\n🔗 לשינוי: ${signup.url}`,
+          });
+        }
+      }
 
     } else if (action.type === 'task') {
-      await createTask(action);
+      const taskResult = await createTask(action);
 
       // Auto sign-up if there's a sheet URL
       if (action.url && action.url.includes('spreadsheets')) {
@@ -87,6 +110,12 @@ async function processMessage(sock, msg) {
         const signup = await pickAndSignUp(action.url, signerName, `${groupName}: ${action.title}`);
         if (signup) {
           action.details = (action.details || '') + `\n\n✍️ נרשמת אוטומטית להביא: ${signup.item}`;
+          const updatedTitle = `${action.title} — ${signup.item}`;
+          const updatedNotes = action.details + `\nסיבה: ${signup.reason}`;
+          // Update task to reflect the specific item
+          if (taskResult?.id) {
+            await updateTask(taskResult.id, { title: updatedTitle, notes: updatedNotes });
+          }
           await sendImmediateEmail({
             subject: `✍️ נרשמת ל: ${signup.item} — ${action.title}`,
             body: `Family Helper נרשם אוטומטית בשמך.\n\nאירוע: ${action.title}\nקבוצה: ${groupName}\nפריט שנבחר: ${signup.item}\nסיבה: ${signup.reason}\n\n🔗 לשינוי: ${signup.url}`,

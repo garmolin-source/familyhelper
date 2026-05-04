@@ -28,12 +28,18 @@ function findBestMatch({ group, keywords, date }) {
   const groupEvents = events.filter((e) => e.group === group);
   if (!groupEvents.length) return null;
 
-  const kw = (keywords || '').toLowerCase().split(' ').filter(Boolean);
+  // Handle keywords as either a string or an array from Claude
+  let kwList = [];
+  if (Array.isArray(keywords)) {
+    kwList = keywords.flatMap((k) => k.toLowerCase().split(' ')).filter(Boolean);
+  } else if (typeof keywords === 'string' && keywords.trim()) {
+    kwList = keywords.toLowerCase().split(' ').filter(Boolean);
+  }
 
   // Score each event: keyword matches + date proximity
   const scored = groupEvents.map((e) => {
     const titleWords = e.title.toLowerCase();
-    const keywordScore = kw.filter((k) => titleWords.includes(k)).length;
+    const keywordScore = kwList.filter((k) => titleWords.includes(k)).length;
 
     let dateScore = 0;
     if (date && e.date) {
@@ -45,6 +51,7 @@ function findBestMatch({ group, keywords, date }) {
   });
 
   scored.sort((a, b) => b.score - a.score);
+  // Return best match if it has any signal at all (keyword or date match)
   return scored[0]?.score > 0 ? scored[0] : null;
 }
 

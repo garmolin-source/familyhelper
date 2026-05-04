@@ -26,6 +26,9 @@ async function connectToWhatsApp() {
     logger: pino({ level: 'silent' }),
     auth: state,
     printQRInTerminal: true,
+    markOnlineOnConnect: false,   // don't appear as "online" when bot connects
+    shouldSyncHistoryMessage: () => false, // don't request history sync
+    getMessage: async () => undefined,     // don't fetch full message bodies (suppresses read receipts)
   });
 
   sock.ev.on('creds.update', saveCreds);

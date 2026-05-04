@@ -39,4 +39,18 @@ async function createTask(action) {
   }
 }
 
-module.exports = { createTask };
+async function updateTask(taskId, { title, notes }) {
+  const tasks = getTasksClient();
+  try {
+    const existing = await tasks.tasks.get({ tasklist: '@default', task: taskId });
+    const patch = { ...existing.data };
+    if (title) patch.title = title;
+    if (notes !== undefined) patch.notes = notes;
+    await tasks.tasks.update({ tasklist: '@default', task: taskId, requestBody: patch });
+    console.log('Google Task updated:', patch.title);
+  } catch (err) {
+    console.error('Tasks update error:', err.message);
+  }
+}
+
+module.exports = { createTask, updateTask };

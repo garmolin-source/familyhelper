@@ -89,23 +89,25 @@ async function createCalendarEvent(action) {
     : action.details;
 
   const conflicts = [];
+  const eventIds = [];
 
   try {
     if (action.type === 'event') {
-      if (!action.date) return { conflicts };
+      if (!action.date) return { conflicts, eventIds };
 
       const overlaps = await checkConflicts(calendar, action.date, action.time);
       if (overlaps.length) {
         conflicts.push(...overlaps.map((e) => ({ newEvent: action.title, conflictWith: e.summary, date: action.date, time: action.time })));
       }
 
-      await insertEvent(calendar, {
+      const ev = await insertEvent(calendar, {
         summary: action.title,
         description,
         date: action.date,
         time: action.time,
         group: action._group,
       });
+      if (ev?.id) eventIds.push(ev.id);
 
     } else if (action.type === 'buy') {
       const dueDate = action.date || today;
@@ -114,9 +116,11 @@ async function createCalendarEvent(action) {
         ? action.reminder_date
         : (fallback >= today ? fallback : today);
 
-      await insertEvent(calendar, { summary: `🛒 לקנות: ${action.title}`, description, date: reminderDate });
+      const ev1 = await insertEvent(calendar, { summary: `🛒 לקנות: ${action.title}`, description, date: reminderDate, group: action._group });
+      if (ev1?.id) eventIds.push(ev1.id);
       if (dueDate !== reminderDate) {
-        await insertEvent(calendar, { summary: `🎒 להביא: ${action.title}`, description, date: dueDate });
+        const ev2 = await insertEvent(calendar, { summary: `🎒 להביא: ${action.title}`, description, date: dueDate, group: action._group });
+        if (ev2?.id) eventIds.push(ev2.id);
       }
 
     } else if (action.type === 'prepare') {
@@ -126,13 +130,14 @@ async function createCalendarEvent(action) {
         ? action.reminder_date
         : (fallback >= today ? fallback : today);
 
-      await insertEvent(calendar, { summary: `🧠 להכין: ${action.title}`, description, date: reminderDate });
+      const ev = await insertEvent(calendar, { summary: `🧠 להכין: ${action.title}`, description, date: reminderDate, group: action._group });
+      if (ev?.id) eventIds.push(ev.id);
     }
   } catch (err) {
     console.error('Calendar error:', err.message);
   }
 
-  return { conflicts };
+  return { conflicts, eventIds };
 }
 
 async function updateCalendarEvent(eventId, changes) {
