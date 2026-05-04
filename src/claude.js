@@ -5,8 +5,9 @@ async function extractActions(messageText, groupName, childInfo = null) {
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
   const { date, dayOfWeek } = TODAY();
 
+  const genderHe = childInfo?.gender === 'male' ? 'בן (זכר)' : childInfo?.gender === 'female' ? 'בת (נקבה)' : '';
   const childContext = childInfo
-    ? `- הילד/ה: ${childInfo.child} (${childInfo.grade}, גיל ${childInfo.age}) — ציין את שם הילד בכותרת ובפרטים`
+    ? `- הילד/ה: ${childInfo.child} (${childInfo.grade}, גיל ${childInfo.age}${genderHe ? ', ' + genderHe : ''}) — ציין את שם הילד בכותרת ובפרטים. השתמש בלשון ${childInfo.gender === 'male' ? 'זכר' : 'נקבה'} בעברית כשמתייחסים אליו/ה.`
     : '- הילד: לא ידוע — אם ניתן לזהות מההקשר, ציין';
 
   const prompt = `אתה עוזר למשפחה ישראלית. חלץ את כל הפריטים הניתנים לפעולה מהודעת WhatsApp.
@@ -34,6 +35,12 @@ ${childContext}
 ]
 
 החזר [] אם אין דבר הניתן לפעולה.
+
+⚠️ שים לב במיוחד להודעות מורים: הן לרוב מערבות עדכון שוטף ("עבדנו על...") עם פריטים לביצוע שמוטמעים בתוכן. חפש תמיד:
+- "נתתי דפי תרגול / שיעורי בית / דף עבודה" → prepare (הילד צריך לעשות אותם)
+- "יש להחזיר / לחתום / לשלם" → task
+- "יש לתרגל / לחזור על" → prepare
+גם אם עיקר ההודעה הוא עדכון שוטף — אם יש בה פעולה לביצוע, חלץ אותה.
 
 --- הגדרות סוגים ---
 
@@ -104,7 +111,7 @@ async function extractActionsFromImage(base64Image, caption, groupName, childInf
     : 'קרא את התמונה וחלץ את כל הפריטים הניתנים לפעולה.';
 
   // Reuse the same system logic with an image content block
-  const childContext = childInfo ? `הילד/ה: ${childInfo.child} (${childInfo.grade}, גיל ${childInfo.age}).` : '';
+  const childContext = childInfo ? `הילד/ה: ${childInfo.child} (${childInfo.grade}, גיל ${childInfo.age}${childInfo.gender === 'male' ? ', זכר' : childInfo.gender === 'female' ? ', נקבה' : ''}). השתמש בלשון ${childInfo.gender === 'male' ? 'זכר' : 'נקבה'} בעברית.` : '';
   const systemContext = `אתה עוזר למשפחה ישראלית. היום: ${date} (${dayOfWeek}). קבוצה: "${groupName}". הורים: אור ואיתי. ${childContext}
 
 החזר ONLY מערך JSON תקין עם אותו פורמט כמו תמיד:
