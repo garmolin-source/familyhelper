@@ -44,14 +44,14 @@ async function checkConflicts(calendar, date, time) {
   }
 }
 
-async function insertEvent(calendar, { summary, description, date, time, group }) {
+async function insertEvent(calendar, { summary, description, date, time, end_time, group }) {
   const isAllDay = !time;
   const start = isAllDay
     ? { date }
     : { dateTime: `${date}T${time}:00`, timeZone: 'Asia/Jerusalem' };
 
-  let endTime = time;
-  if (!isAllDay) {
+  let endTime = end_time || null;
+  if (!isAllDay && !endTime) {
     const [h, m] = time.split(':').map(Number);
     endTime = `${String(h + 1).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
   }
@@ -105,6 +105,7 @@ async function createCalendarEvent(action) {
         description,
         date: action.date,
         time: action.time,
+        end_time: action.end_time,
         group: action._group,
       });
       if (ev?.id) eventIds.push(ev.id);

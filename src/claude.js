@@ -26,6 +26,7 @@ ${childContext}
     "date": "YYYY-MM-DD or null",
     "reminder_date": "YYYY-MM-DD or null — see rules below",
     "time": "HH:MM or null",
+    "end_time": "HH:MM or null — שעת סיום אם מפורשת בהודעה (למשל '8:00 עד 16:00' → end_time: '16:00'). אחרת null.",
     "owner": "Or" | "Itay" | "both",
     "details": "תיאור קצר בעברית. אם יש קישור רלוונטי בהודעה, כלול אותו כאן.",
     "url": "URL אם קיים בהודעה ורלוונטי לפריט זה, אחרת null"
@@ -107,7 +108,7 @@ async function extractActionsFromImage(base64Image, caption, groupName, childInf
   const systemContext = `אתה עוזר למשפחה ישראלית. היום: ${date} (${dayOfWeek}). קבוצה: "${groupName}". הורים: אור ואיתי. ${childContext}
 
 החזר ONLY מערך JSON תקין עם אותו פורמט כמו תמיד:
-[{ "type": "event"|"buy"|"prepare"|"task", "title": "כותרת בעברית", "date": "YYYY-MM-DD or null", "reminder_date": "YYYY-MM-DD or null", "time": "HH:MM or null", "owner": "Or"|"Itay"|"both", "details": "תיאור בעברית", "url": null }]
+[{ "type": "event"|"buy"|"prepare"|"task", "title": "כותרת בעברית", "date": "YYYY-MM-DD or null", "reminder_date": "YYYY-MM-DD or null", "time": "HH:MM or null", "end_time": "HH:MM or null", "owner": "Or"|"Itay"|"both", "details": "תיאור בעברית", "url": null }]
 
 החזר [] אם אין דבר הניתן לפעולה. אותם כללי סוגים כמו תמיד.`;
 
