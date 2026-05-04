@@ -35,6 +35,7 @@ async function sendDailyDigest(items) {
   const tasks = items.filter((i) => i.action.type === 'task');
   const updates = items.filter((i) => i.action.type === 'update');
   const cancels = items.filter((i) => i.action.type === 'cancel');
+  const ideas = items.filter((i) => i.action.type === 'idea');
   const conflicts = items.flatMap((i) => i.action._conflicts || []);
 
   const today = new Date().toLocaleDateString('he-IL', {
@@ -108,6 +109,17 @@ async function sendDailyDigest(items) {
   if (tasks.length > 0) {
     body += `✅ משימות לביצוע (${tasks.length})\n${'-'.repeat(40)}\n`;
     for (const { action, group } of tasks) {
+      body += `• ${action.title}`;
+      body += `\n  [${group}]`;
+      if (action.details) body += `\n  ${action.details}`;
+      body += '\n\n';
+    }
+  }
+
+  if (ideas.length > 0) {
+    body += `💡 רעיונות להעשרה עם הילדים (${ideas.length})\n${'-'.repeat(40)}\n`;
+    body += `(השראה ממה שקרה היום בכיתה/גן — לא חובה, רק אם בא לכם)\n\n`;
+    for (const { action, group } of ideas) {
       body += `• ${action.title}`;
       body += `\n  [${group}]`;
       if (action.details) body += `\n  ${action.details}`;

@@ -140,6 +140,9 @@ async function processMessage(sock, msg) {
       } else {
         console.log(`  → Could not find original event to cancel`);
       }
+
+    } else if (action.type === 'idea') {
+      // Creative enrichment suggestion — stored for digest only, no calendar/task
     }
 
     addAction(action, groupName, action.title);
