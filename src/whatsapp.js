@@ -33,6 +33,10 @@ async function connectToWhatsApp() {
 
   sock.ev.on('creds.update', saveCreds);
 
+  // Prevent the bot from ever appearing online — stops WhatsApp from
+  // suppressing push notifications to the phone
+  sock.sendPresenceUpdate = async () => {};
+
   sock.ev.on('connection.update', ({ connection, lastDisconnect, qr }) => {
     if (qr) {
       qrCodeData = qr;
